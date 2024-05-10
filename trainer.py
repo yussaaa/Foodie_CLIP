@@ -98,7 +98,7 @@ class CLIPTrainer(Trainer):
             similarity_logits = similarity_logits.detach()
         return loss, similarity_logits, inputs["mask"]
         
-
+# test trainer
 if __name__ == '__main__':
     # loading model
     foodieclip_config = CLIPConfig.from_pretrained("openai/clip-vit-base-patch32") 
