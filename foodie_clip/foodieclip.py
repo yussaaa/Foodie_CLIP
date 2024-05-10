@@ -10,15 +10,16 @@ import torch.nn.functional as F
 class ClIPLoss(nn.Module):
     def __init__(self):
         super(ClIPLoss, self).__init__()
+        self.softmax = nn.Softmax(dim=-1)
     
-    def contrastive_loss(self, similarity_logits):
-        # diagonal
-        target = torch.arange(len(similarity_logits), device=similarity_logits.device)
+    def contrastive_loss(self, similarity_logits, mask):
+        target = self.softmax(mask)
         return F.cross_entropy(input=similarity_logits, target=target)
     
-    def forward(self, similarity_logits):
-        image_logits_loss = self.contrastive_loss(similarity_logits)
-        text_logits_loss = self.contrastive_loss(similarity_logits.t())
+    def forward(self, similarity_logits, mask):
+        # print(similarity_logits.shape, mask.shape)
+        image_logits_loss = self.contrastive_loss(similarity_logits, mask)
+        text_logits_loss = self.contrastive_loss(similarity_logits.t(), mask.t())
         return (image_logits_loss+text_logits_loss)/2
 
 class FoodieClipSimilarity(PreTrainedModel, nn.Module):
@@ -28,7 +29,6 @@ class FoodieClipSimilarity(PreTrainedModel, nn.Module):
         super(FoodieClipSimilarity, self).__init__(config)
         self.config = config
         self.logit_scale = nn.Parameter(torch.tensor(self.config.logit_scale_init_value))
-        self.softmax = nn.Softmax(dim=-1)
         # Initialize weights and apply final processing
         self.post_init()
         
@@ -237,20 +237,21 @@ class FoodieClip(FoodieClipPreTrain):
     
     def get_similarity(self, 
         image_embedding: Optional[torch.FloatTensor] = None,
-        text__embedding: Optional[torch.FloatTensor] = None
+        text_embedding: Optional[torch.FloatTensor] = None
     )-> Optional[torch.FloatTensor]:
         # normalized features
         image_embedding = image_embedding/image_embedding.norm(p=2, dim=-1, keepdim=True)
-        text__embedding = text__embedding/text__embedding.norm(p=2, dim=-1, keepdim=True)
+        text_embedding = text_embedding/text_embedding.norm(p=2, dim=-1, keepdim=True)
         # cosine similarity
         logit_scale = self.logit_scale.exp()
-        image_logits = torch.matmul(image_embedding, text__embedding.t()) * logit_scale
+        image_logits = torch.matmul(image_embedding, text_embedding.t()) * logit_scale
+        # print(image_embedding.shape, text_embedding.shape, image_logits.shape)
         return image_logits
     
     def forward(self, text_input, image_input):
-        image_embedding, pool_hidden_state = self.get_text_feature(**text_input)
-        text_embedding, pool_hidden_state = self.get_image_feature(**image_input)
-        similarity = self.get_similarity(image_embedding=image_embedding, text__embedding=text_embedding)
+        text_embedding, pool_hidden_state = self.get_text_feature(**text_input)
+        image_embedding, pool_hidden_state = self.get_image_feature(**image_input)
+        similarity = self.get_similarity(image_embedding=image_embedding, text_embedding=text_embedding)
         return similarity
     
     
