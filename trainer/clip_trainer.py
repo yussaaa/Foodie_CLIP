@@ -2,11 +2,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from torch import nn
 import torch
 from transformers import Trainer, TrainingArguments, PreTrainedModel, DataCollator, AutoProcessor, CLIPConfig
-from datasets import Dataset
 from importlib.util import find_spec
-from utils.utils import CLIPDataCollator, CLIPDataset
-from utils.evaluate import compute_accuracy
-from foodie_clip.foodieclip import FoodieClip, ClIPLoss
+from torch.utils.data import Dataset
+from .evaluate import compute_accuracy
 
 def is_peft_available():
     return find_spec("peft") is not None
@@ -100,6 +98,13 @@ class CLIPTrainer(Trainer):
         
 # test trainer
 if __name__ == '__main__':
+    import os
+    path = os.getcwd()
+    import sys
+    # append the path of the parent directory
+    sys.path.append(path)
+    from foodie_clip.foodieclip import FoodieClip, ClIPLoss
+    from utils import CLIPDataset, CLIPDataCollator
     # loading model
     foodieclip_config = CLIPConfig.from_pretrained("openai/clip-vit-base-patch32") 
     foodieclip = FoodieClip(foodieclip_config, projection_dim=64)

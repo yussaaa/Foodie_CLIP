@@ -1,5 +1,4 @@
 from torcheval.metrics import MultilabelAccuracy
-import torch
 import numpy as np
 
 def compute_accuracy(eval_preds):
@@ -10,7 +9,6 @@ def compute_accuracy(eval_preds):
     result = np.where(result > 0, result, 0)
     n_image = pred.shape[0]
     accuracy = result.sum(axis=0)/n_image
-    print(accuracy)
     return {' caption match accuracy':accuracy}
 
 if __name__ == '__main__':  
