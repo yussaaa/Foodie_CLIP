@@ -6,6 +6,7 @@ import os
 from PIL import Image
 import bisect
 import torch
+from dataclasses import dataclass
 
 class IndividualClassDataset(Dataset):
     def __init__(self, index, path, description, class_max_datapoints=200):
@@ -24,7 +25,7 @@ class IndividualClassDataset(Dataset):
         
         
 class CLIPDataset(Dataset):
-    def __init__(self, path, train=True, class_max_datapoints=200):
+    def __init__(self, path="", train=True, class_max_datapoints=200):
         self.path = path
         self.df = pd.read_csv(self.path+"data/class_names.csv")
         if train:
@@ -58,7 +59,7 @@ class CLIPDataset(Dataset):
             prev_end_idx = self.datasets[dataset_index-1][1]
             return dataset[idx-prev_end_idx]
         
-
+@dataclass
 class CLIPDataCollator:
     r"""
     Reward DataCollator class that pads the inputs to the maximum length of the batch.
@@ -84,6 +85,9 @@ class CLIPDataCollator:
         self.max_length = max_length
         self.return_tensors = return_tensors
     
+    def set_max_length(self, max_length):
+        self.max_length = max_length
+    
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
         images = []
         texts = []
@@ -103,15 +107,15 @@ class CLIPDataCollator:
         # tokenize text
         batch_images = self.processor(images=images, return_tensors=self.return_tensors, padding = self.padding)
         # image preprocess for vit
-        batch_texts = self.processor(text=texts, return_tensors=self.return_tensors, padding = self.padding, max_length=self.max_length)
+        batch_texts = self.processor(text=texts, return_tensors=self.return_tensors, padding='max_length', max_length=self.max_length, truncation=True)
         # construct the mask matrix(m x n)
         # if mask matrix[i][j] == 1, texts[i] is the label of images[j]
-        mask = torch.zeros(m, n)
+        mask = torch.ones(m, n)*-torch.inf
         for text in texts_row_id.values():
             row_index = text["row_id"]
             col_indices = text["image_index"]
             mask[row_index, col_indices] = 1
-        return {"texts_input":batch_texts, "images_input":batch_images, "mask":mask}
+        return {"texts_input":batch_texts, "images_input":batch_images, "mask":mask.t()}
 
         
 if __name__ == '__main__':    
@@ -122,7 +126,7 @@ if __name__ == '__main__':
         texts_input = minibatch["texts_input"]
         images_input = minibatch["images_input"]
         mask = minibatch["mask"]
-        print(texts_input)
-        print(images_input)
-        print(mask.shape)
+        # print(texts_input)
+        # print(images_input)
+        print(mask)
             
