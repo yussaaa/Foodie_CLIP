@@ -3,3 +3,4 @@ transformers
 Pillow
 requests
 flask_cors
+pandas
